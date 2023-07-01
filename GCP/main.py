@@ -26,9 +26,9 @@ def list_running_instances(request):
     """
 
     if len(instances) != 0:
-        message = "GCPインスタンスが起動中です!!\n"
+        message = "GCPインスタンスが起動中です!!"
         for instance in instances:
-            message *= "・" + instance['name'] + "\n"
+            message += "\n・" + instance['name']
         send_line_message(message)
 
     return 'Completed'
@@ -51,4 +51,6 @@ def send_line_message(message):
             }
         ]
     }
-    requests.post(url, headers=headers, data=json.dumps(data))
+    response = requests.post(url, headers=headers, data=json.dumps(data))
+    if response.status_code != 200:
+        print(response.json())
