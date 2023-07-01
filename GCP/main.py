@@ -1,30 +1,54 @@
+import requests
+import json
 import os
+
 from googleapiclient.discovery import build
 
 def list_running_instances(request):
     project_id = os.environ.get('PROJECT_ID')
-    label_filter = os.environ.get('LABEL_FILTER')
-
-    service = build('appengine', 'v1')
-    response = service.apps().services().list(
-        appsId=project_id,
-        pageSize=100  # 必要に応じてページサイズを調整
-    ).execute()
+    # label_filter = os.environ.get('LABEL_FILTER')
+    zone = os.environ.get('ZONE')
 
     instances = []
-    for service in response.get('services', []):
-        if service.get('split', {}).get('allocations', []):
-            for instance in service['split']['allocations']:
-                if label_filter is None or label_filter in instance.get('labels', {}):
-                    instances.append(instance)
 
-    sql_service = build('sqladmin', 'v1beta4')
-    instances_list = sql_service.instances().list(project=project_id).execute()
-    for instance in instances_list.get('items', []):
+    gae = build('compute', 'v1')
+    gae_list = gae.instances().list(project=project_id, zone=zone).execute()
+    for service in gae_list.get('items'):
+        if service['status'] == 'RUNNING':
+            instances.append(service)
+
+    """
+    csql = build('sqladmin', 'v1beta4')
+    csql_list = csql.instances().list(project=project_id).execute()
+    for instance in csql_list.get('items', []):
         if label_filter is None or label_filter in instance.get('labels', {}):
             instances.append(instance)
+    """
 
-    for instance in instances:
-        print(f"Instance ID: {instance['instance']}")
+    if len(instances) != 0:
+        message = "GCPインスタンスが起動中です!!\n"
+        for instance in instances:
+            message *= "・" + instance['name'] + "\n"
+        send_line_message(message)
 
     return 'Completed'
+
+def send_line_message(message):
+    channel_token = os.environ.get('CHANNEL_TOKEN')
+    user_id = os.environ.get('USER_ID')
+
+    url = "https://api.line.me/v2/bot/message/push"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + channel_token
+    }
+    data = {
+        "to": user_id,
+        "messages": [
+            {
+                "type": "text",
+                "text": message
+            }
+        ]
+    }
+    requests.post(url, headers=headers, data=json.dumps(data))
