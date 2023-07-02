@@ -4,7 +4,7 @@ import os
 
 from googleapiclient.discovery import build
 
-def list_running_instances(request):
+def list_running_instances(event, context):
     project_id = os.environ.get('PROJECT_ID')
     # label_filter = os.environ.get('LABEL_FILTER')
     zone = os.environ.get('ZONE')
@@ -17,13 +17,12 @@ def list_running_instances(request):
         if service['status'] == 'RUNNING':
             instances.append(service)
 
-    """
+
     csql = build('sqladmin', 'v1beta4')
     csql_list = csql.instances().list(project=project_id).execute()
-    for instance in csql_list.get('items', []):
-        if label_filter is None or label_filter in instance.get('labels', {}):
-            instances.append(instance)
-    """
+    for service in csql_list.get('items'):
+        if service['settings']['activationPolicy'] == 'ALWAYS':
+            instances.append(service)
 
     if len(instances) != 0:
         message = "GCPインスタンスが起動中です!!"
